@@ -141,7 +141,7 @@ export const PixelNavigationGestures: React.FC<PixelGestureNavigationProps> = ({
     }
 
     // Swipe up from bottom pill while on Home Screen -> Open App Drawer!
-    if (!isActiveAppOpen && !isAppDrawerOpen && deltaY > 20 && onOpenAppDrawer) {
+    if (!isActiveAppOpen && !isAppDrawerOpen && deltaY > 12 && onOpenAppDrawer) {
       triggerHaptic('doubleTick');
       playTapSound(600);
       onOpenAppDrawer();

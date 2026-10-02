@@ -26,13 +26,19 @@ import {
   SlidersHorizontal,
   Sliders,
   X,
-  Undo2
+  Undo2,
+  Mic,
+  Camera,
+  Plane,
+  BellOff,
+  Bluetooth
 } from 'lucide-react';
 import { AppItem, ActiveApp, MagicCapsuleActivity, WallpaperItem, NoteItem, NotificationItem } from './types/launcher';
 import { DEFAULT_APPS, BIG_FOLDER_APPS, DOCK_APPS, WALLPAPERS, INITIAL_NOTIFICATIONS, INITIAL_NOTES } from './data/apps';
 import { AppIcon } from './components/AppIcon';
 import { MagicCapsule } from './components/MagicCapsule';
 import { MagicPortal } from './components/MagicPortal';
+import { MagicRingModal } from './components/MagicRingModal';
 import { BigFolder } from './components/BigFolder';
 import { ControlCenter } from './components/ControlCenter';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -47,6 +53,8 @@ import { WeatherWidget } from './components/widgets/WeatherWidget';
 import { ClockWidget } from './components/widgets/ClockWidget';
 import { YoyoSuggestionsWidget } from './components/widgets/YoyoSuggestionsWidget';
 import { HealthWidget } from './components/widgets/HealthWidget';
+import { MusicWidget } from './components/widgets/MusicWidget';
+import { BatteryWidget } from './components/widgets/BatteryWidget';
 
 // Simulated Apps
 import { CameraApp } from './components/apps/CameraApp';
@@ -69,6 +77,16 @@ import { FilesApp } from './components/apps/FilesApp';
 import { SystemManagerApp } from './components/apps/SystemManagerApp';
 import { SunnyAssistantApp } from './components/apps/SunnyAssistantApp';
 import { SocialAppView } from './components/apps/SocialAppView';
+import { MessagesApp } from './components/apps/MessagesApp';
+import { PlayStoreApp } from './components/apps/PlayStoreApp';
+import { ContactsApp } from './components/apps/ContactsApp';
+import { GmailApp } from './components/apps/GmailApp';
+import { MapsApp } from './components/apps/MapsApp';
+import { CalendarApp } from './components/apps/CalendarApp';
+import { RecorderApp } from './components/apps/RecorderApp';
+import { SafetyApp } from './components/apps/SafetyApp';
+import { MeetApp } from './components/apps/MeetApp';
+import { TranslateApp } from './components/apps/TranslateApp';
 
 // Sound & Haptic utilities
 import { playTapSound, playLockSound, playUnlockSound } from './utils/sound';
@@ -77,18 +95,18 @@ import { initTouchHapticFeedback, triggerHaptic } from './utils/haptics';
 export type DeviceMode = 'phone' | 'tablet' | 'phone-frame';
 
 const INITIAL_HOME_APPS: AppItem[] = [
+  { id: 'camera', name: 'Camera', iconName: 'camera', category: 'media' },
   { id: 'gallery', name: 'Gallery', iconName: 'gallery', category: 'media' },
+  { id: 'playstore', name: 'Play Store', iconName: 'playstore', category: 'system' },
+  { id: 'youtube', name: 'YouTube', iconName: 'youtube', category: 'media' },
   { id: 'settings', name: 'Settings', iconName: 'settings', category: 'system' },
-  { id: 'notes', name: 'Notes', iconName: 'notes', category: 'tools' },
-  { id: 'health', name: 'Health', iconName: 'health', category: 'tools' },
-  { id: 'music', name: 'Music', iconName: 'music', category: 'media' },
-  { id: 'calculator', name: 'Calculator', iconName: 'calculator', category: 'tools' },
-  { id: 'themes', name: 'Themes', iconName: 'themes', category: 'system' },
-  { id: 'yoyo', name: 'SUNNY AI', iconName: 'yoyo', category: 'system' },
   { id: 'files', name: 'Files', iconName: 'files', category: 'tools' },
-  { id: 'clock', name: 'Clock', iconName: 'clock', category: 'tools' },
-  { id: 'manager', name: 'Optimizer', iconName: 'manager', category: 'system' },
-  { id: 'browser', name: 'Browser', iconName: 'browser', category: 'system' },
+  { id: 'browser', name: 'Chrome', iconName: 'chrome', category: 'system' },
+  { id: 'whatsapp', name: 'WhatsApp', iconName: 'whatsapp', category: 'social' },
+  { id: 'calendar', name: 'Calendar', iconName: 'calendar', category: 'tools' },
+  { id: 'calculator', name: 'Calculator', iconName: 'calculator', category: 'tools' },
+  { id: 'recorder', name: 'Recorder', iconName: 'recorder', category: 'tools' },
+  { id: 'notes', name: 'Notes', iconName: 'notes', category: 'tools' },
 ];
 
 export default function App() {
@@ -98,6 +116,7 @@ export default function App() {
   const [recentAppsList, setRecentAppsList] = useState<string[]>(['camera', 'settings', 'music']);
   const [isRecentAppsOpen, setIsRecentAppsOpen] = useState(false);
   const [isAppDrawerOpen, setIsAppDrawerOpen] = useState(false);
+  const [isMagicRingOpen, setIsMagicRingOpen] = useState(false);
 
   // Initialize global smooth touch haptic feedback across all interactive touch inputs
   useEffect(() => {
@@ -147,7 +166,7 @@ export default function App() {
     setToastMessage({ text, undoAction });
     setTimeout(() => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
-    }, 4000);
+    }, 2200);
   };
 
   const handleAddToHome = (app: AppItem) => {
@@ -255,7 +274,7 @@ export default function App() {
     y: number; 
     isRightSide: boolean; 
     isFromBottom: boolean; 
-    isFromTopHalf: boolean;
+    isFromTopOfScreen: boolean;
     isTopOfDock: boolean;
     startTime: number 
   } | null>(null);
@@ -267,11 +286,11 @@ export default function App() {
       const isRight = (clientX - rect.left) > (rect.width * 0.48);
       const relY = clientY - rect.top;
       
-      // Identify touches originating from the bottom of the display (bottom 45% or dock/nav area)
-      const isFromBottom = relY > (rect.height * 0.52) || clientY > (window.innerHeight * 0.55);
+      // Identify touches originating from the bottom of the display (bottom half, dock, nav pill)
+      const isFromBottom = relY > (rect.height * 0.45) || clientY > (window.innerHeight * 0.45);
 
-      // Identify touches originating from the top half of the display (top 50% / status bar / clock / weather)
-      const isFromTopHalf = relY <= (rect.height * 0.52) || clientY <= (window.innerHeight * 0.52);
+      // Identify touches originating strictly from the VERY TOP of the screen (status bar & top edge only)
+      const isFromTopOfScreen = relY <= Math.max(90, rect.height * 0.14) || clientY <= 90;
 
       // Check if touch originates specifically from the top of the dock area
       let isTopOfDock = false;
@@ -280,7 +299,7 @@ export default function App() {
         const dRect = dockElem.getBoundingClientRect();
         isTopOfDock = clientY >= (dRect.top - 65) && clientY <= (dRect.top + 40);
       } else {
-        isTopOfDock = relY > (rect.height * 0.65) && relY < (rect.height * 0.90);
+        isTopOfDock = relY > (rect.height * 0.60) && relY < (rect.height * 0.95);
       }
 
       gestureStartRef.current = { 
@@ -288,7 +307,7 @@ export default function App() {
         y: clientY, 
         isRightSide: isRight, 
         isFromBottom,
-        isFromTopHalf,
+        isFromTopOfScreen,
         isTopOfDock,
         startTime: Date.now() 
       };
@@ -301,7 +320,7 @@ export default function App() {
     const deltaY = clientY - gestureStartRef.current.y;
     const duration = Math.max(1, Date.now() - gestureStartRef.current.startTime);
     const isFromBottom = gestureStartRef.current.isFromBottom;
-    const isFromTopHalf = gestureStartRef.current.isFromTopHalf;
+    const isFromTopOfScreen = gestureStartRef.current.isFromTopOfScreen;
     const isTopOfDock = gestureStartRef.current.isTopOfDock;
     gestureStartRef.current = null;
 
@@ -309,56 +328,24 @@ export default function App() {
     const velocityY = Math.abs(deltaY) / duration;
     const velocityX = Math.abs(deltaX) / duration;
 
-    // FEATURE 1: Swiping UP from the top of the dock -> Open Apps Drawer!
-    if (isTopOfDock && deltaY < -18 && Math.abs(deltaY) > Math.abs(deltaX) * 0.6) {
+    // FEATURE 1: Swiping UP from the BOTTOM of the display (dock, nav bar, lower screen) -> Open Apps Drawer!
+    if ((isFromBottom || isTopOfDock) && deltaY < -15 && Math.abs(deltaY) > Math.abs(deltaX) * 0.5) {
       triggerHaptic('doubleTick');
       playTapSound(600);
       setIsAppDrawerOpen(true);
       return;
     }
 
-    // FEATURE 2: Fast scroll / flick UP from bottom of the display -> Open Apps Drawer!
-    if (isFromBottom && deltaY < -28 && (velocityY >= 0.28 || duration <= 360) && Math.abs(deltaY) > Math.abs(deltaX) * 0.8) {
-      triggerHaptic('doubleTick');
-      playTapSound(600);
-      setIsAppDrawerOpen(true);
-      return;
-    }
-
-    // FEATURE 3: Swiping DOWN from the TOP HALF of the display -> Open Notification Panel!
-    if (isFromTopHalf && deltaY > 22 && Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
+    // FEATURE 3: Swiping DOWN from the TOP OF THE SCREEN ONLY -> Open Notification Panel!
+    if (isFromTopOfScreen && deltaY > 18 && Math.abs(deltaY) > Math.abs(deltaX) * 0.6) {
       triggerHaptic('doubleTick');
       playTapSound(600);
       setIsNotificationCenterOpen(true);
       return;
     }
 
-    // Filter out slow scrolling on lower home screen area:
-    // If the gesture duration is slow (> 380ms) or velocity is low (< 0.45 px/ms),
-    // the user is simply scrolling slowly. DO NOT open App Drawer or Notification Panel!
-    const isSlowScroll = duration > 380 || velocityY < 0.45;
-
-    // Prioritize vertical gestures only when fast & intentional (quick flick)
-    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.3) {
-      if (isSlowScroll) {
-        // Slow finger scroll -> Ignore gesture and let user scroll naturally
-        return;
-      }
-
-      // Deliberate quick flick UP -> Open App Drawer
-      if (deltaY < -55 && velocityY >= 0.45) {
-        triggerHaptic('tick');
-        playTapSound(600);
-        setIsAppDrawerOpen(true);
-      } 
-      // Deliberate quick flick DOWN -> Open Notification Panel
-      else if (deltaY > 65 && velocityY >= 0.45) {
-        triggerHaptic('tick');
-        playTapSound(600);
-        setIsNotificationCenterOpen(true);
-      }
-    } else if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && (Math.abs(deltaX) > 60 || velocityX > 0.4)) {
-      // Horizontal swipe between home screen pages
+    // Horizontal swipe between home screen pages
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && (Math.abs(deltaX) > 60 || velocityX > 0.4)) {
       if (deltaX < -50) {
         setCurrentPage((p) => Math.min(2, p + 1));
       } else if (deltaX > 50) {
@@ -447,6 +434,60 @@ export default function App() {
     artist: 'SUNNY Sound Lab',
   });
 
+  // System Connectivity & Default Modes
+  const [isCellularOn, setIsCellularOn] = useState(true);
+  const [isWifiOn, setIsWifiOn] = useState(true);
+  const [isBluetoothOn, setIsBluetoothOn] = useState(true);
+  const [isAirplaneOn, setIsAirplaneOn] = useState(false);
+  const [isSilentModeOn, setIsSilentModeOn] = useState(false);
+  const [isLowPowerOn, setIsLowPowerOn] = useState(false);
+  const [isRotationLocked, setIsRotationLocked] = useState(true);
+  const [isNightShiftOn, setIsNightShiftOn] = useState(false);
+  const [isHotspotOn, setIsHotspotOn] = useState(false);
+  const [focusMode, setFocusMode] = useState<'work' | 'personal' | 'sleep' | 'dnd'>('work');
+
+  const PLAYLIST = [
+    { title: 'Symphony in Blue', artist: 'SUNNY Sound Lab' },
+    { title: 'Magic Horizon 11', artist: 'Honor Acoustic' },
+    { title: 'Golden Hour Neon', artist: 'Sunny Vibes' }
+  ];
+
+  const handleNextTrack = () => {
+    setCurrentTrack(prev => {
+      const idx = PLAYLIST.findIndex(p => p.title === prev.title);
+      const nextIdx = (idx + 1) % PLAYLIST.length;
+      return PLAYLIST[nextIdx];
+    });
+  };
+
+  const handleToggleAirplane = () => {
+    setIsAirplaneOn(prev => {
+      const next = !prev;
+      if (next) {
+        setIsWifiOn(false);
+        setIsCellularOn(false);
+        setIsBluetoothOn(false);
+      } else {
+        setIsWifiOn(true);
+        setIsCellularOn(true);
+        setIsBluetoothOn(true);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleLowPower = () => {
+    setIsLowPowerOn(prev => {
+      const next = !prev;
+      if (next) {
+        setBrightness(b => Math.max(30, b - 20));
+      } else {
+        setBrightness(b => Math.min(85, b + 20));
+      }
+      return next;
+    });
+  };
+
   // Data
   const [wallpaper, setWallpaper] = useState<WallpaperItem>(WALLPAPERS[0]);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
@@ -500,7 +541,10 @@ export default function App() {
 
   // Magic Portal Drop action
   const handlePortalDrop = (targetApp: string, content: string) => {
-    if (targetApp === 'notes') {
+    if (targetApp === 'magicring') {
+      setIsMagicRingOpen(true);
+      return;
+    } else if (targetApp === 'notes') {
       const newNote: NoteItem = {
         id: `note-${Date.now()}`,
         title: 'Magic Portal Clipping',
@@ -510,6 +554,9 @@ export default function App() {
       };
       setNotes(prev => [newNote, ...prev]);
       setActiveApp('notes');
+    } else if (targetApp === 'maps') {
+      setBrowserInitialQuery(`https://www.google.com/maps/search/${encodeURIComponent(content)}`);
+      setActiveApp('browser');
     } else if (targetApp === 'yoyo' || targetApp === 'browser') {
       setBrowserInitialQuery(content);
       setActiveApp('browser');
@@ -523,6 +570,11 @@ export default function App() {
       {/* Torch Light Overlay on entire screen when flashlight is on */}
       {isFlashlightOn && (
         <div className="fixed inset-0 bg-amber-100/15 pointer-events-none z-[60] backdrop-brightness-125 transition-all"></div>
+      )}
+
+      {/* Night Shift / Eye Comfort Warm Filter Simulator */}
+      {isNightShiftOn && (
+        <div className="fixed inset-0 pointer-events-none z-[58] bg-amber-600/15 mix-blend-multiply backdrop-sepia-[0.35] transition-all duration-300"></div>
       )}
 
       {/* Screen Brightness Filter Simulator */}
@@ -643,11 +695,19 @@ export default function App() {
               className="flex items-center gap-1.5 font-mono text-[11px] hover:opacity-80 transition-opacity"
               title="Swipe down or click to toggle Control Center"
             >
-              <span className="text-[10px] font-sans font-bold tracking-tight text-white/90">5G</span>
-              <Wifi size={13} className="text-white/90" />
+              {isSilentModeOn && <BellOff size={11} className="text-rose-400" />}
+              {isAirplaneOn ? (
+                <Plane size={12} className="text-amber-400" />
+              ) : (
+                <>
+                  {isCellularOn && <span className="text-[10px] font-sans font-bold tracking-tight text-white/90">5G</span>}
+                  {isWifiOn && <Wifi size={13} className="text-white/90" />}
+                  {isBluetoothOn && <Bluetooth size={12} className="text-blue-400" />}
+                </>
+              )}
               <div className="flex items-center gap-0.5">
-                <span>89%</span>
-                <Battery size={14} className="fill-white" />
+                <span className={isLowPowerOn ? 'text-amber-400 font-bold' : ''}>89%</span>
+                <Battery size={14} className={isLowPowerOn ? 'text-amber-400 fill-amber-400' : 'fill-white'} />
               </div>
             </button>
           </div>
@@ -822,55 +882,55 @@ export default function App() {
                       <WeatherWidget onOpenWeather={() => handleOpenApp('weather')} />
                     </div>
 
-                    {/* Big 2x2 Interactive Folder + Dynamic 4 Apps Grid */}
-                    <div className="grid grid-cols-2 gap-3 items-stretch">
-                      {/* Big Folder */}
-                      <div className="h-44">
-                        <BigFolder
-                          title="Tools & System"
-                          apps={BIG_FOLDER_APPS}
-                          onOpenApp={(appId) => handleOpenApp(appId)}
-                          onDragStartPortal={(content) => {
-                            setDraggedContent(content);
-                            setIsMagicPortalOpen(true);
-                          }}
-                        />
+                    {/* 3D Extruded Pill Search Bar matching reference image */}
+                    <div 
+                      onClick={() => handleOpenApp('browser')}
+                      className="w-full px-4 py-2.5 rounded-[28px] bg-white/15 dark:bg-black/40 backdrop-blur-2xl border-t border-t-white/60 border-b-[2px] border-b-black/40 shadow-[0_10px_24px_rgba(0,0,0,0.5),inset_0_1.5px_2px_rgba(255,255,255,0.3)] flex items-center justify-between cursor-pointer hover:border-cyan-400/40 transition-all select-none"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {/* 4-Color Google G */}
+                        <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
+                          <span className="text-xs font-black bg-gradient-to-r from-blue-600 via-rose-500 to-amber-500 bg-clip-text text-transparent">
+                            G
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium text-white/80">Search apps, files, web...</span>
                       </div>
-
-                      {/* 2x2 App Grid next to folder (first 4 homeApps) */}
-                      <div className="grid grid-cols-2 gap-2 h-44 items-center justify-items-center p-2 rounded-[28px] bg-white/5 backdrop-blur-md border border-white/10">
-                        {homeApps.slice(0, 4).map((app) => (
-                          <AppIcon 
-                            key={`home-2x2-${app.id}`}
-                            iconName={app.iconName} 
-                            label={app.name} 
-                            isEditMode={isHomeEditMode}
-                            onRemove={() => handleRemoveFromHome(app.id)}
-                            onOpen={() => handleOpenApp(app.id)} 
-                            onHold={() => setHomeContextMenuApp(app)}
-                            onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
-                          />
-                        ))}
+                      <div className="flex items-center gap-3 text-white/70">
+                        <Mic size={15} className="hover:text-cyan-400 transition-colors" />
+                        <Camera size={15} className="hover:text-cyan-400 transition-colors" />
                       </div>
                     </div>
 
-                    {/* Dynamic Row(s) of remaining Home Apps */}
-                    {homeApps.length > 4 && (
-                      <div className="grid grid-cols-4 gap-2 justify-items-center pt-1">
-                        {homeApps.slice(4).map((app) => (
-                          <AppIcon 
-                            key={`home-row-${app.id}`}
-                            iconName={app.iconName} 
-                            label={app.name} 
-                            isEditMode={isHomeEditMode}
-                            onRemove={() => handleRemoveFromHome(app.id)}
-                            onOpen={() => handleOpenApp(app.id)} 
-                            onHold={() => setHomeContextMenuApp(app)}
-                            onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    {/* Dual 3D Glass Widgets: Music & Battery matching reference image */}
+                    <div className="grid grid-cols-2 gap-3 h-28">
+                      <MusicWidget
+                        isPlaying={isPlayingMusic}
+                        onTogglePlay={handleToggleMusic}
+                        currentTrack={currentTrack}
+                        onOpenApp={() => handleOpenApp('music')}
+                      />
+                      <BatteryWidget
+                        batteryLevel={80}
+                        onOpenSettings={() => handleOpenApp('settings')}
+                      />
+                    </div>
+
+                    {/* 4-Column 3D App Icon Rows matching reference image */}
+                    <div className="grid grid-cols-4 gap-y-3.5 gap-x-2 justify-items-center pt-1">
+                      {homeApps.map((app) => (
+                        <AppIcon 
+                          key={`home-row-${app.id}`}
+                          iconName={app.iconName} 
+                          label={app.name} 
+                          isEditMode={isHomeEditMode}
+                          onRemove={() => handleRemoveFromHome(app.id)}
+                          onOpen={() => handleOpenApp(app.id)} 
+                          onHold={() => setHomeContextMenuApp(app)}
+                          onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
+                        />
+                      ))}
+                    </div>
                   </>
                 )}
               </div>
@@ -999,10 +1059,10 @@ export default function App() {
               )}
             </div>
           ) : (
-            /* PHONE DOCK (4 MAIN APPS) */
+            /* PHONE DOCK (5 3D GLASS ICONS MATCHING REFERENCE) */
             <div 
               id="main-phone-dock"
-              className="mt-1 p-2 pt-1.5 rounded-[32px] bg-white/20 dark:bg-black/40 backdrop-blur-2xl border border-white/25 dark:border-white/10 shadow-2xl relative"
+              className="mt-1 p-2.5 pt-2 rounded-[36px] bg-white/20 dark:bg-black/45 backdrop-blur-3xl border-t border-t-white/50 border-b-[3px] border-b-black/40 shadow-[0_16px_36px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.35)] relative"
             >
               {/* Top of Dock Swipe Handle Strip */}
               <div
@@ -1039,34 +1099,43 @@ export default function App() {
                   playTapSound(600);
                   setIsAppDrawerOpen(true);
                 }}
-                className="w-10 h-1 bg-white/35 hover:bg-cyan-400 rounded-full mx-auto mb-1.5 cursor-pointer transition-all active:scale-110"
+                className="w-10 h-1 bg-white/40 hover:bg-cyan-400 rounded-full mx-auto mb-1 cursor-pointer transition-all active:scale-110"
                 title="Swipe up from top of dock to open Apps Drawer"
               />
 
-              <div className="flex items-center justify-around">
+              <div className="flex items-center justify-between px-1">
                 <AppIcon
                   iconName="phone"
-                  label="Phone"
+                  label=""
                   showBadge={1}
                   onOpen={() => handleOpenApp('phone')}
                   onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
                 />
                 <AppIcon
                   iconName="messages"
-                  label="Messages"
+                  label=""
                   showBadge={3}
                   onOpen={() => handleOpenApp('messages')}
                   onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
                 />
                 <AppIcon
-                  iconName="browser"
-                  label="Browser"
-                  onOpen={() => handleOpenApp('browser')}
+                  iconName="grid"
+                  label=""
+                  onOpen={() => {
+                    triggerHaptic('doubleTick');
+                    playTapSound(600);
+                    setIsAppDrawerOpen(true);
+                  }}
+                />
+                <AppIcon
+                  iconName="contacts"
+                  label=""
+                  onOpen={() => handleOpenApp('phone')}
                   onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
                 />
                 <AppIcon
                   iconName="camera"
-                  label="Camera"
+                  label=""
                   onOpen={() => handleOpenApp('camera')}
                   onDragStartPortal={(c) => { setDraggedContent(c); setIsMagicPortalOpen(true); }}
                 />
@@ -1232,10 +1301,10 @@ export default function App() {
         onEnterEditMode={() => setIsHomeEditMode(true)}
       />
 
-      {/* Toast Notification for App Add/Remove Actions */}
+      {/* Toast Notification for App Add/Remove Actions and System Notices */}
       {toastMessage && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/95 border border-white/20 text-white text-xs shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom duration-200">
-          <span className="font-medium">{toastMessage.text}</span>
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[80] pointer-events-auto flex items-center gap-3 px-4 py-2 rounded-full bg-neutral-900/95 border border-white/20 text-white text-xs shadow-2xl backdrop-blur-2xl animate-in slide-in-from-top duration-200">
+          <span className="font-semibold">{toastMessage.text}</span>
           {toastMessage.undoAction && (
             <button
               type="button"
@@ -1284,7 +1353,7 @@ export default function App() {
         }}
       />
 
-      {/* Notification Center Shade (Pull down from left/center) */}
+      {/* Notification Center Shade (Pull down from left/center) - Styled as futuristic iOS 27 Cover Sheet */}
       <NotificationCenter
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
@@ -1293,13 +1362,57 @@ export default function App() {
           setNotifications(prev => prev.filter(n => n.id !== id));
         }}
         onClearAll={() => setNotifications([])}
+        onAddNotification={(n) => setNotifications(prev => [n, ...prev])}
         onOpenSettings={() => {
           setIsNotificationCenterOpen(false);
           handleOpenApp('settings');
         }}
+        onOpenApp={(appId) => {
+          setIsNotificationCenterOpen(false);
+          handleOpenApp(appId);
+        }}
         isFlashlightOn={isFlashlightOn}
         onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
         brightness={brightness}
+        onBrightnessChange={setBrightness}
+        volume={volume}
+        onVolumeChange={setVolume}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        isPlayingMusic={isPlayingMusic}
+        onToggleMusic={handleToggleMusic}
+        currentTrack={currentTrack}
+        onNextTrack={handleNextTrack}
+        isCellularOn={isCellularOn}
+        onToggleCellular={() => setIsCellularOn(prev => !prev)}
+        isWifiOn={isWifiOn}
+        onToggleWifi={() => setIsWifiOn(prev => !prev)}
+        isBluetoothOn={isBluetoothOn}
+        onToggleBluetooth={() => setIsBluetoothOn(prev => !prev)}
+        isAirplaneOn={isAirplaneOn}
+        onToggleAirplane={handleToggleAirplane}
+        isSilentModeOn={isSilentModeOn}
+        onToggleSilentMode={() => setIsSilentModeOn(prev => !prev)}
+        isLowPowerOn={isLowPowerOn}
+        onToggleLowPower={handleToggleLowPower}
+        isRotationLocked={isRotationLocked}
+        onToggleRotationLock={() => setIsRotationLocked(prev => !prev)}
+        isNightShiftOn={isNightShiftOn}
+        onToggleNightShift={() => setIsNightShiftOn(prev => !prev)}
+        isHotspotOn={isHotspotOn}
+        onToggleHotspot={() => setIsHotspotOn(prev => !prev)}
+        focusMode={focusMode}
+        onCycleFocusMode={() => {
+          const modes: ('work' | 'personal' | 'sleep' | 'dnd')[] = ['work', 'personal', 'sleep', 'dnd'];
+          const next = modes[(modes.indexOf(focusMode) + 1) % modes.length];
+          setFocusMode(next);
+          setToastMessage({ text: `Focus Mode: ${next.toUpperCase()}` });
+        }}
+        onShowToast={(msg) => showToast(msg)}
+        onOpenControlCenter={() => {
+          setIsNotificationCenterOpen(false);
+          setIsControlCenterOpen(true);
+        }}
       />
 
       {/* Control Center Panel (Pull down from top-right) */}
@@ -1317,6 +1430,13 @@ export default function App() {
         currentTrack={currentTrack}
         isFlashlightOn={isFlashlightOn}
         onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
+        onOpenMagicRing={() => setIsMagicRingOpen(true)}
+      />
+
+      {/* MagicRing Cross-Device Collaboration Modal */}
+      <MagicRingModal
+        isOpen={isMagicRingOpen}
+        onClose={() => setIsMagicRingOpen(false)}
       />
 
       {/* GOOGLE PIXEL GESTURE NAVIGATION (Home, Back, Recents, App Switch for apps & drawer) */}
@@ -1370,7 +1490,7 @@ export default function App() {
         />
       )}
 
-      {activeApp === 'gallery' && (
+      {(activeApp === 'gallery' || activeApp === 'photos') && (
         <GalleryApp
           onClose={handleCloseApp}
           userPhotos={capturedPhotos}
@@ -1403,8 +1523,68 @@ export default function App() {
         <CalculatorApp onClose={handleCloseApp} />
       )}
 
-      {(activeApp === 'phone' || activeApp === 'messages') && (
+      {activeApp === 'phone' && (
         <PhoneApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'messages' && (
+        <MessagesApp 
+          onClose={handleCloseApp} 
+          onOpenPhone={() => handleOpenApp('phone')}
+        />
+      )}
+
+      {activeApp === 'playstore' && (
+        <PlayStoreApp 
+          onClose={handleCloseApp} 
+          onInstallApp={(name, icon) => {
+            handleInstallNewApp({
+              id: name.toLowerCase().replace(/\s+/g, '-'),
+              name,
+              iconName: icon,
+              category: 'tools'
+            });
+          }}
+        />
+      )}
+
+      {activeApp === 'contacts' && (
+        <ContactsApp 
+          onClose={handleCloseApp}
+          onCallContact={() => handleOpenApp('phone')}
+          onMessageContact={() => handleOpenApp('messages')}
+        />
+      )}
+
+      {activeApp === 'gmail' && (
+        <GmailApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'maps' && (
+        <MapsApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'calendar' && (
+        <CalendarApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'recorder' && (
+        <RecorderApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'safety' && (
+        <SafetyApp 
+          onClose={handleCloseApp} 
+          onCallEmergency={() => handleOpenApp('phone')}
+        />
+      )}
+
+      {activeApp === 'meet' && (
+        <MeetApp onClose={handleCloseApp} />
+      )}
+
+      {activeApp === 'translate' && (
+        <TranslateApp onClose={handleCloseApp} />
       )}
 
       {activeApp === 'health' && (

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MagicOS 11 Launcher</string>
+    <string name="title_activity_main">MagicOS 11 Launcher</string>
+    <string name="package_name">com.magicos.launcher</string>
+    <string name="custom_url_scheme">com.magicos.launcher</string>
+</resources>

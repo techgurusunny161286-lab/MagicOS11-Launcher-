@@ -3,22 +3,34 @@ import { AppItem, WallpaperItem, NotificationItem, NoteItem } from '../types/lau
 export const DEFAULT_APPS: AppItem[] = [
   { id: 'phone', name: 'Phone', iconName: 'phone', category: 'system', isSystemApp: true, badge: 1 },
   { id: 'messages', name: 'Messages', iconName: 'messages', category: 'social', isSystemApp: true, badge: 3 },
-  { id: 'browser', name: 'Browser', iconName: 'browser', category: 'system', isSystemApp: true },
+  { id: 'browser', name: 'Chrome', iconName: 'chrome', category: 'system', isSystemApp: true },
   { id: 'camera', name: 'Camera', iconName: 'camera', category: 'media', isSystemApp: true },
   
   { id: 'gallery', name: 'Gallery', iconName: 'gallery', category: 'media', isSystemApp: true },
-  { id: 'settings', name: 'Settings', iconName: 'settings', category: 'system', isSystemApp: true },
-  { id: 'notes', name: 'SUNNY Notes', iconName: 'notes', category: 'tools', isSystemApp: true },
-  { id: 'calculator', name: 'Calculator', iconName: 'calculator', category: 'tools', isSystemApp: true },
-  { id: 'health', name: 'SUNNY Health', iconName: 'health', category: 'tools', isSystemApp: true },
-  { id: 'music', name: 'SUNNY Music', iconName: 'music', category: 'media', isSystemApp: true },
-  { id: 'themes', name: 'Themes', iconName: 'themes', category: 'system', isSystemApp: true },
-  { id: 'weather', name: 'Weather', iconName: 'weather', category: 'tools', isSystemApp: true },
+  { id: 'playstore', name: 'Play Store', iconName: 'playstore', category: 'system', isSystemApp: true },
+  { id: 'youtube', name: 'YouTube', iconName: 'youtube', category: 'media', isSystemApp: true },
+  { id: 'whatsapp', name: 'WhatsApp', iconName: 'whatsapp', category: 'social', isSystemApp: true, badge: 2 },
   
+  { id: 'settings', name: 'Settings', iconName: 'settings', category: 'system', isSystemApp: true },
   { id: 'files', name: 'Files', iconName: 'files', category: 'tools', isSystemApp: true },
   { id: 'clock', name: 'Clock', iconName: 'clock', category: 'tools', isSystemApp: true },
-  { id: 'manager', name: 'System Manager', iconName: 'manager', category: 'system', isSystemApp: true },
-  { id: 'yoyo', name: 'SUNNY Assistant', iconName: 'yoyo', category: 'system', isSystemApp: true },
+  { id: 'contacts', name: 'Contacts', iconName: 'contacts', category: 'system', isSystemApp: true },
+
+  { id: 'gmail', name: 'Gmail', iconName: 'gmail', category: 'social', isSystemApp: true },
+  { id: 'maps', name: 'Maps', iconName: 'maps', category: 'tools', isSystemApp: true },
+  { id: 'calendar', name: 'Calendar', iconName: 'calendar', category: 'tools', isSystemApp: true },
+  { id: 'calculator', name: 'Calculator', iconName: 'calculator', category: 'tools', isSystemApp: true },
+  { id: 'recorder', name: 'Recorder', iconName: 'recorder', category: 'tools', isSystemApp: true },
+  { id: 'notes', name: 'Notes', iconName: 'notes', category: 'tools', isSystemApp: true },
+  { id: 'photos', name: 'Photos', iconName: 'photos', category: 'media', isSystemApp: true },
+  { id: 'safety', name: 'Safety', iconName: 'safety', category: 'system', isSystemApp: true },
+  { id: 'meet', name: 'Meet', iconName: 'meet', category: 'social', isSystemApp: true },
+  { id: 'translate', name: 'Translate', iconName: 'translate', category: 'tools', isSystemApp: true },
+  
+  { id: 'health', name: 'Health', iconName: 'health', category: 'tools', isSystemApp: true },
+  { id: 'music', name: 'Music', iconName: 'music', category: 'media', isSystemApp: true },
+  { id: 'weather', name: 'Weather', iconName: 'weather', category: 'tools', isSystemApp: true },
+  { id: 'yoyo', name: 'Sunny AI', iconName: 'yoyo', category: 'system', isSystemApp: true },
 ];
 
 export const BIG_FOLDER_APPS: AppItem[] = [

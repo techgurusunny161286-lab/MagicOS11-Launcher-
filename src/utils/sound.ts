@@ -2,6 +2,16 @@
 import { triggerHaptic } from './haptics';
 
 let audioCtx: AudioContext | null = null;
+let masterVolume = 0.7;
+let isSystemMuted = false;
+
+export function setSystemVolume(val: number) {
+  masterVolume = Math.max(0, Math.min(1, val / 100));
+}
+
+export function setSystemMuted(muted: boolean) {
+  isSystemMuted = muted;
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -19,6 +29,7 @@ function getAudioContext(): AudioContext | null {
 
 export function playTapSound(frequency = 600, duration = 0.03) {
   triggerHaptic('tick');
+  if (isSystemMuted || masterVolume <= 0.01) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -29,7 +40,7 @@ export function playTapSound(frequency = 600, duration = 0.03) {
     osc.frequency.setValueAtTime(frequency, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + duration);
 
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.setValueAtTime(0.06 * masterVolume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     osc.connect(gain);

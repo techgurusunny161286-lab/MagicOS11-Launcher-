@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Search, X, Sparkles, ChevronDown, Plus, Download, Info } from 'lucide-react';
+import { Search, X, Sparkles, ChevronDown, Plus, Download, Info, LayoutGrid, ListFilter } from 'lucide-react';
 import { AppItem } from '../types/launcher';
 import { AppIcon } from './AppIcon';
 import { AppContextMenu } from './AppContextMenu';
@@ -33,6 +33,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   homeAppIds = [],
 }) => {
   const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Communication' | 'Entertainment' | 'Tools'>('All');
   const [selectedAppForMenu, setSelectedAppForMenu] = useState<AppItem | null>(null);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -40,35 +41,27 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ y: number; x: number; isTopHeader: boolean } | null>(null);
 
-  // Group apps alphabetically
+  // Filter apps by search & category
   const filteredApps = useMemo(() => {
-    if (!search.trim()) {
-      return [...apps].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return apps
-      .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [apps, search]);
+    return apps.filter((app) => {
+      const matchesSearch = !search.trim() || app.name.toLowerCase().includes(search.toLowerCase());
+      if (!matchesSearch) return false;
 
-  // Suggested apps (top 4 favorites)
-  const suggestedApps = useMemo(() => {
-    return apps.slice(0, 4);
-  }, [apps]);
+      if (activeCategory === 'All') return true;
+      if (activeCategory === 'Communication') {
+        return ['phone', 'messages', 'whatsapp', 'contacts', 'gmail', 'meet'].includes(app.id) || app.category === 'social';
+      }
+      if (activeCategory === 'Entertainment') {
+        return ['youtube', 'gallery', 'photos', 'music', 'netflix', 'spotify'].includes(app.id) || app.category === 'media';
+      }
+      if (activeCategory === 'Tools') {
+        return ['settings', 'files', 'clock', 'calculator', 'recorder', 'notes', 'maps', 'calendar', 'weather', 'manager', 'safety', 'browser', 'playstore'].includes(app.id) || app.category === 'tools';
+      }
+      return true;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [apps, search, activeCategory]);
 
-  // Alphabetical buckets
-  const groupedApps = useMemo(() => {
-    const map: Record<string, AppItem[]> = {};
-    filteredApps.forEach((app) => {
-      const firstLetter = app.name[0].toUpperCase();
-      if (!map[firstLetter]) map[firstLetter] = [];
-      map[firstLetter].push(app);
-    });
-    return map;
-  }, [filteredApps]);
-
-  const availableLetters = useMemo(() => {
-    return Object.keys(groupedApps).sort();
-  }, [groupedApps]);
+  const ALPHABET = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   if (!isOpen) return null;
 
@@ -102,16 +95,22 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   };
 
   const scrollToLetter = (letter: string) => {
+    triggerHaptic('tick');
     playTapSound(700, 0.02);
-    const element = document.getElementById(`letter-group-${letter}`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const targetApp = filteredApps.find(a => 
+      letter === '#' ? !/^[A-Z]/i.test(a.name) : a.name.toUpperCase().startsWith(letter)
+    );
+    if (targetApp) {
+      const element = document.getElementById(`app-drawer-item-${targetApp.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   };
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-neutral-950/80 backdrop-blur-2xl text-white select-none animate-in slide-in-from-bottom duration-300 overflow-hidden"
+      className="fixed inset-0 z-50 flex flex-col justify-end bg-neutral-950/80 backdrop-blur-3xl text-white select-none animate-in slide-in-from-bottom duration-300 overflow-hidden"
       onClick={onClose}
     >
       <div 
@@ -120,39 +119,73 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
         onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0].clientY, e.changedTouches[0].clientX)}
         onMouseDown={(e) => handleTouchStart(e.clientY, e.clientX, false)}
         onMouseUp={(e) => handleTouchEnd(e.clientY, e.clientX)}
-        className="w-full max-w-[420px] md:max-w-3xl lg:max-w-4xl mx-auto h-[92%] flex flex-col rounded-t-[38px] bg-neutral-900/95 border-t border-neutral-700/60 shadow-2xl p-4 md:p-6 pb-8"
+        className="w-full max-w-[440px] md:max-w-3xl lg:max-w-4xl mx-auto h-[94%] flex flex-col rounded-t-[42px] bg-neutral-900/90 border-t border-t-white/30 shadow-[0_-20px_50px_rgba(0,0,0,0.85)] p-4 md:p-6 pb-6 relative backdrop-blur-2xl"
       >
-        {/* Top Grab Handle & Dismiss Area (Swipe Down anywhere here to close) */}
+        {/* Top Grab Handle */}
         <div 
           onClick={onClose}
           onTouchStart={(e) => handleTouchStart(e.touches[0].clientY, e.touches[0].clientX, true)}
           onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0].clientY, e.changedTouches[0].clientX)}
           onMouseDown={(e) => handleTouchStart(e.clientY, e.clientX, true)}
           onMouseUp={(e) => handleTouchEnd(e.clientY, e.clientX)}
-          className="flex flex-col items-center justify-center cursor-pointer pt-1 pb-2 group touch-none hover:opacity-90 active:scale-95 transition-all"
-          title="Swipe down at top or click to close"
+          className="flex flex-col items-center justify-center cursor-pointer pt-1 pb-2 group touch-none active:scale-95 transition-all"
         >
-          <div className="w-14 h-1.5 rounded-full bg-neutral-500 group-hover:bg-neutral-300 transition-colors"></div>
-          <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-medium mt-1">
-            <ChevronDown size={13} className="text-cyan-400 group-hover:translate-y-0.5 transition-transform" />
-            <span>Swipe down at top to close</span>
+          <div className="w-14 h-1.5 rounded-full bg-white/40 group-hover:bg-white transition-colors"></div>
+        </div>
+
+        {/* Title Header: "Apps" matching reference */}
+        <div className="flex items-center justify-between px-2 pt-1 mb-2">
+          <h2 className="text-2xl font-black tracking-tight text-white font-sans">Apps</h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('smooth');
+                setIsInstallModalOpen(true);
+              }}
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-cyan-300 transition-colors"
+              title="Add / Install App"
+            >
+              <Plus size={16} />
+            </button>
           </div>
         </div>
 
-        {/* Search Bar + Install App Action Button */}
-        <div 
-          className="relative my-1 px-1 flex items-center gap-2"
-          onTouchStart={(e) => handleTouchStart(e.touches[0].clientY, e.touches[0].clientX, true)}
-          onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0].clientY, e.changedTouches[0].clientX)}
-        >
-          <div className="relative flex-1 flex items-center">
-            <Search size={16} className="absolute left-3.5 text-neutral-400" />
+        {/* Category Filter Pills (All, Communication, Entertainment, Tools) */}
+        <div className="flex items-center gap-2 px-1 mb-3 overflow-x-auto no-scrollbar">
+          {(['All', 'Communication', 'Entertainment', 'Tools'] as const).map((cat) => {
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('tick');
+                  playTapSound(600);
+                  setActiveCategory(cat);
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shadow-md ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/30 border border-white/30 scale-[1.02]'
+                    : 'bg-white/10 hover:bg-white/15 text-neutral-300 border border-white/10'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 3D Extruded Search Bar matching reference */}
+        <div className="relative mb-3 px-1 flex items-center gap-2">
+          <div className="relative flex-1 flex items-center rounded-[22px] bg-white/10 dark:bg-black/40 backdrop-blur-2xl border-t border-t-white/40 border-b border-b-black/40 shadow-[0_6px_16px_rgba(0,0,0,0.4),inset_0_1.5px_2px_rgba(255,255,255,0.2)]">
+            <Search size={17} className="absolute left-3.5 text-neutral-300" />
             <input
               type="text"
-              placeholder="Search apps & suggestions..."
+              placeholder="Search apps..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-neutral-800/80 border border-neutral-700/60 text-xs text-white placeholder-neutral-400 focus:outline-none focus:border-cyan-400 transition-colors shadow-inner"
+              className="w-full pl-10 pr-9 py-2.5 bg-transparent text-xs text-white placeholder-neutral-400 focus:outline-none"
             />
             {search ? (
               <button
@@ -163,146 +196,80 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
                 <X size={14} />
               </button>
             ) : (
-              <Sparkles size={14} className="absolute right-3 text-cyan-400 animate-pulse" />
+              <LayoutGrid size={15} className="absolute right-3.5 text-neutral-400" />
             )}
           </div>
-
-          {/* Install New App Button */}
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('smooth');
-              setIsInstallModalOpen(true);
-            }}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold whitespace-nowrap active:scale-95 transition-all shadow"
-            title="Install or Add New App"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            <span className="hidden sm:inline">Install</span>
-          </button>
         </div>
 
-        {/* Feature Hint Pill */}
-        <div className="px-2 py-1 flex items-center justify-between text-[10px] text-cyan-400/90 font-medium bg-cyan-500/10 rounded-xl my-1 border border-cyan-500/20">
-          <span>💡 Press & hold any app (&lt;1s) to Add to Home Screen or Uninstall</span>
-        </div>
-
-        {/* Suggested Apps Section (if not searching) */}
-        {!search && (
-          <div 
-            className="py-2 border-b border-neutral-800/80"
-            onTouchStart={(e) => handleTouchStart(e.touches[0].clientY, e.touches[0].clientX, true)}
-            onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0].clientY, e.changedTouches[0].clientX)}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 px-2 block mb-2">
-              Suggested Apps
-            </span>
-            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 justify-items-center">
-              {suggestedApps.map((app) => (
-                <div 
-                  key={`sugg-${app.id}`}
-                  className="flex flex-col items-center"
-                >
-                  <AppIcon
-                    iconName={app.iconName}
-                    size="sm"
-                    label={app.name}
-                    isDraggable={true}
-                    onDragStartPortal={onDragStartPortal}
-                    onOpen={() => {
-                      playTapSound(600);
-                      onOpenApp(app.id);
-                      onClose();
-                    }}
-                    onHold={() => {
-                      setSelectedAppForMenu(app);
-                      setIsContextMenuOpen(true);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* All Apps List with Alphabet Scrubber */}
+        {/* All Apps Grid with 3D Depth Icons & Alphabet Index Rail */}
         <div 
-          className="relative flex-1 overflow-hidden flex mt-2"
+          className="relative flex-1 overflow-hidden flex"
           onTouchStart={(e) => handleTouchStart(e.touches[0].clientY, e.touches[0].clientX, false)}
           onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0].clientY, e.changedTouches[0].clientX)}
           onMouseDown={(e) => handleTouchStart(e.clientY, e.clientX, false)}
           onMouseUp={(e) => handleTouchEnd(e.clientY, e.clientX)}
         >
-          {/* Scrollable Apps Container */}
+          {/* Scrollable Apps Grid (4 columns) */}
           <div 
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto no-scrollbar pr-5 space-y-4"
+            className="flex-1 overflow-y-auto no-scrollbar pr-6 py-1"
           >
             {filteredApps.length === 0 ? (
-              <div className="py-12 text-center text-neutral-500 text-xs">
+              <div className="py-16 text-center text-neutral-400 text-xs">
                 No apps found matching "{search}"
               </div>
             ) : (
-              availableLetters.map((letter) => (
-                <div key={letter} id={`letter-group-${letter}`} className="space-y-2">
-                  <div className="text-[11px] font-bold text-neutral-400 px-2 sticky top-0 bg-neutral-900/90 backdrop-blur-sm py-0.5 z-10">
-                    {letter}
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-y-4 gap-x-2 justify-items-center">
+                {filteredApps.map((app) => (
+                  <div
+                    key={app.id}
+                    id={`app-drawer-item-${app.id}`}
+                    className="flex flex-col items-center"
+                  >
+                    <AppIcon
+                      iconName={app.iconName}
+                      size="md"
+                      showBadge={app.badge}
+                      label={app.name}
+                      isDraggable={true}
+                      onDragStartPortal={onDragStartPortal}
+                      onOpen={() => {
+                        playTapSound(600);
+                        onOpenApp(app.id);
+                        onClose();
+                      }}
+                      onHold={() => {
+                        setSelectedAppForMenu(app);
+                        setIsContextMenuOpen(true);
+                      }}
+                    />
                   </div>
-                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 justify-items-center">
-                    {groupedApps[letter].map((app) => (
-                      <div
-                        key={app.id}
-                        className="flex flex-col items-center"
-                      >
-                        <AppIcon
-                          iconName={app.iconName}
-                          size="md"
-                          showBadge={app.badge}
-                          label={app.name}
-                          isDraggable={true}
-                          onDragStartPortal={onDragStartPortal}
-                          onOpen={() => {
-                            playTapSound(600);
-                            onOpenApp(app.id);
-                            onClose();
-                          }}
-                          onHold={() => {
-                            setSelectedAppForMenu(app);
-                            setIsContextMenuOpen(true);
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Quick Alphabet Index Scrubber on Right Edge */}
-          {!search && availableLetters.length > 2 && (
-            <div className="absolute right-0 inset-y-0 flex flex-col justify-center items-center py-2 px-0.5 text-[9px] font-mono text-neutral-400 select-none">
-              {availableLetters.map((ltr) => (
-                <button
-                  type="button"
-                  key={ltr}
-                  onClick={() => scrollToLetter(ltr)}
-                  className="w-3.5 h-3.5 flex items-center justify-center hover:text-cyan-400 hover:scale-125 transition-transform"
-                >
-                  {ltr}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Quick Alphabet Index Scrubber on Right Edge matching reference */}
+          <div className="absolute right-0 inset-y-0 flex flex-col justify-between items-center py-2 px-0.5 text-[8.5px] font-sans font-bold text-white/50 select-none pointer-events-auto">
+            {ALPHABET.map((ltr) => (
+              <button
+                type="button"
+                key={ltr}
+                onClick={() => scrollToLetter(ltr)}
+                className="w-3.5 h-3 flex items-center justify-center hover:text-cyan-400 hover:scale-150 transition-transform cursor-pointer"
+              >
+                {ltr}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Bottom Swipe Down / Close Bar */}
+        {/* Bottom Home Indicator */}
         <div 
           onClick={onClose}
-          className="pt-2 text-center text-[10px] text-neutral-500 flex items-center justify-center gap-1 cursor-pointer hover:text-neutral-300"
+          className="pt-2 text-center text-[10px] text-neutral-500 flex flex-col items-center justify-center gap-1 cursor-pointer hover:text-neutral-300"
         >
-          <ChevronDown size={14} />
-          <span>Tap or swipe down to close</span>
+          <div className="w-24 h-1 rounded-full bg-white/40"></div>
         </div>
       </div>
 

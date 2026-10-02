@@ -7,7 +7,7 @@ export interface AppItem {
   isSystemApp?: boolean;
 }
 
-export type MagicCapsuleActivity = 'music' | 'timer' | 'call' | 'charging';
+export type MagicCapsuleActivity = 'music' | 'timer' | 'call' | 'charging' | 'flight' | 'ride';
 
 export interface WidgetConfig {
   id: string;
