@@ -117,6 +117,9 @@ export default function App() {
   const [isRecentAppsOpen, setIsRecentAppsOpen] = useState(false);
   const [isAppDrawerOpen, setIsAppDrawerOpen] = useState(false);
   const [isMagicRingOpen, setIsMagicRingOpen] = useState(false);
+  const [isControlCenterOpen, setIsControlCenterOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   // Initialize global smooth touch haptic feedback across all interactive touch inputs
   useEffect(() => {
@@ -279,20 +282,20 @@ export default function App() {
     startTime: number 
   } | null>(null);
 
-  // Gesture Recognition: Fast deliberate Swipe UP for App Drawer, Fast deliberate Swipe DOWN for Notifications
+  // Gesture Recognition: Swipe UP for App Drawer, Swipe DOWN from top or homescreen for Notification Panel & Toggles
   const handleGestureStart = (clientX: number, clientY: number) => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const isRight = (clientX - rect.left) > (rect.width * 0.48);
       const relY = clientY - rect.top;
       
-      // Identify touches originating from the bottom of the display (bottom half, dock, nav pill)
+      // Touches originating from the bottom of the display (bottom half, dock, nav pill)
       const isFromBottom = relY > (rect.height * 0.45) || clientY > (window.innerHeight * 0.45);
 
-      // Identify touches originating strictly from the VERY TOP of the screen (status bar & top edge only)
-      const isFromTopOfScreen = relY <= Math.max(90, rect.height * 0.14) || clientY <= 90;
+      // Touches originating from the top portion of the screen (status bar, dynamic capsule, top widgets)
+      const isFromTopOfScreen = relY <= Math.max(160, rect.height * 0.25) || clientY <= 160;
 
-      // Check if touch originates specifically from the top of the dock area
+      // Check if touch originates specifically from the dock area
       let isTopOfDock = false;
       const dockElem = document.getElementById('main-phone-dock');
       if (dockElem) {
@@ -322,6 +325,7 @@ export default function App() {
     const isFromBottom = gestureStartRef.current.isFromBottom;
     const isFromTopOfScreen = gestureStartRef.current.isFromTopOfScreen;
     const isTopOfDock = gestureStartRef.current.isTopOfDock;
+    const isRightSide = gestureStartRef.current.isRightSide;
     gestureStartRef.current = null;
 
     // Calculate swipe velocity in pixels/ms
@@ -336,11 +340,16 @@ export default function App() {
       return;
     }
 
-    // FEATURE 3: Swiping DOWN from the TOP OF THE SCREEN ONLY -> Open Notification Panel!
-    if (isFromTopOfScreen && deltaY > 18 && Math.abs(deltaY) > Math.abs(deltaX) * 0.6) {
+    // FEATURE 2: Swiping DOWN from TOP OF THE SCREEN or on Home Screen -> Open Notification Panel & Toggles!
+    // Top-Right swipe down opens Control Center toggles; Top-Left/Center swipe opens Notification Panel
+    if ((isFromTopOfScreen || (!activeApp && !isAppDrawerOpen && !isRecentAppsOpen)) && deltaY > 18 && Math.abs(deltaY) > Math.abs(deltaX) * 0.55) {
       triggerHaptic('doubleTick');
       playTapSound(600);
-      setIsNotificationCenterOpen(true);
+      if (isRightSide) {
+        setIsControlCenterOpen(true);
+      } else {
+        setIsNotificationCenterOpen(true);
+      }
       return;
     }
 
@@ -353,6 +362,75 @@ export default function App() {
       }
     }
   };
+
+  // Global window pointer & touch listener to guarantee top-edge pull-down works across mouse, touch & trackpad
+  useEffect(() => {
+    let startY = 0;
+    let startX = 0;
+    let isTracking = false;
+    let isRightSide = false;
+
+    const onPointerDown = (e: PointerEvent) => {
+      // Only left click or touch/pen
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      const clientY = e.clientY;
+      const clientX = e.clientX;
+      let isNearTop = false;
+      let isRight = false;
+
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const relY = clientY - rect.top;
+        isNearTop = relY >= 0 && relY <= Math.max(160, rect.height * 0.24);
+        isRight = (clientX - rect.left) > (rect.width * 0.48);
+      } else {
+        isNearTop = clientY <= Math.max(160, window.innerHeight * 0.20);
+        isRight = clientX > (window.innerWidth * 0.48);
+      }
+
+      if (isNearTop) {
+        startY = clientY;
+        startX = clientX;
+        isTracking = true;
+        isRightSide = isRight;
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isTracking) return;
+      const deltaY = e.clientY - startY;
+      const deltaX = e.clientX - startX;
+
+      // Downward pull-down swipe trigger
+      if (deltaY > 20 && deltaY > Math.abs(deltaX) * 0.5) {
+        isTracking = false;
+        triggerHaptic('doubleTick');
+        playTapSound(600);
+        if (isRightSide) {
+          setIsControlCenterOpen(true);
+        } else {
+          setIsNotificationCenterOpen(true);
+        }
+      }
+    };
+
+    const onPointerUp = () => {
+      isTracking = false;
+    };
+
+    window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, []);
 
   // Google Pixel Gesture Navigation Handlers
   const handlePixelHome = () => {
@@ -413,9 +491,6 @@ export default function App() {
   };
 
   // System States
-  const [isLocked, setIsLocked] = useState(false);
-  const [isControlCenterOpen, setIsControlCenterOpen] = useState(false);
-  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [brightness, setBrightness] = useState(85);
   const [volume, setVolume] = useState(70);
@@ -599,6 +674,41 @@ export default function App() {
         {isPhoneFrame && (
           <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-neutral-700/80 z-50 pointer-events-none"></div>
         )}
+
+        {/* Top Edge Pull-Down Gesture Sensor Bar (Notifications & Quick Toggles) */}
+        <div 
+          className="absolute top-0 inset-x-0 h-8 z-[45] flex items-center justify-between px-6 pointer-events-auto select-none"
+          onTouchStart={(e) => handleGestureStart(e.touches[0].clientX, e.touches[0].clientY)}
+          onTouchEnd={(e) => handleGestureEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
+          onMouseDown={(e) => handleGestureStart(e.clientX, e.clientY)}
+          onMouseUp={(e) => handleGestureEnd(e.clientX, e.clientY)}
+        >
+          {/* Left/Center Pull Down Indicator for Notifications & Toggles */}
+          <div 
+            className="flex-1 h-full flex items-start pt-1 cursor-pointer group"
+            onClick={() => {
+              triggerHaptic('tick');
+              playTapSound(600);
+              setIsNotificationCenterOpen(prev => !prev);
+            }}
+            title="Swipe down or tap for Notification Panel & Toggles"
+          >
+            <div className="w-12 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors mx-auto" />
+          </div>
+
+          {/* Right Pull Down Indicator for Control Center Toggles */}
+          <div 
+            className="w-20 h-full flex items-start pt-1 justify-end cursor-pointer group"
+            onClick={() => {
+              triggerHaptic('tick');
+              playTapSound(600);
+              setIsControlCenterOpen(prev => !prev);
+            }}
+            title="Swipe down or tap for Control Center Toggles"
+          >
+            <div className="w-8 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors mr-1" />
+          </div>
+        </div>
 
         {/* 1. MAGICOS STATUS BAR */}
         <div 
@@ -1353,86 +1463,6 @@ export default function App() {
         }}
       />
 
-      {/* Notification Center Shade (Pull down from left/center) - Styled as futuristic iOS 27 Cover Sheet */}
-      <NotificationCenter
-        isOpen={isNotificationCenterOpen}
-        onClose={() => setIsNotificationCenterOpen(false)}
-        notifications={notifications}
-        onDismiss={(id: string) => {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }}
-        onClearAll={() => setNotifications([])}
-        onAddNotification={(n) => setNotifications(prev => [n, ...prev])}
-        onOpenSettings={() => {
-          setIsNotificationCenterOpen(false);
-          handleOpenApp('settings');
-        }}
-        onOpenApp={(appId) => {
-          setIsNotificationCenterOpen(false);
-          handleOpenApp(appId);
-        }}
-        isFlashlightOn={isFlashlightOn}
-        onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
-        brightness={brightness}
-        onBrightnessChange={setBrightness}
-        volume={volume}
-        onVolumeChange={setVolume}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        isPlayingMusic={isPlayingMusic}
-        onToggleMusic={handleToggleMusic}
-        currentTrack={currentTrack}
-        onNextTrack={handleNextTrack}
-        isCellularOn={isCellularOn}
-        onToggleCellular={() => setIsCellularOn(prev => !prev)}
-        isWifiOn={isWifiOn}
-        onToggleWifi={() => setIsWifiOn(prev => !prev)}
-        isBluetoothOn={isBluetoothOn}
-        onToggleBluetooth={() => setIsBluetoothOn(prev => !prev)}
-        isAirplaneOn={isAirplaneOn}
-        onToggleAirplane={handleToggleAirplane}
-        isSilentModeOn={isSilentModeOn}
-        onToggleSilentMode={() => setIsSilentModeOn(prev => !prev)}
-        isLowPowerOn={isLowPowerOn}
-        onToggleLowPower={handleToggleLowPower}
-        isRotationLocked={isRotationLocked}
-        onToggleRotationLock={() => setIsRotationLocked(prev => !prev)}
-        isNightShiftOn={isNightShiftOn}
-        onToggleNightShift={() => setIsNightShiftOn(prev => !prev)}
-        isHotspotOn={isHotspotOn}
-        onToggleHotspot={() => setIsHotspotOn(prev => !prev)}
-        focusMode={focusMode}
-        onCycleFocusMode={() => {
-          const modes: ('work' | 'personal' | 'sleep' | 'dnd')[] = ['work', 'personal', 'sleep', 'dnd'];
-          const next = modes[(modes.indexOf(focusMode) + 1) % modes.length];
-          setFocusMode(next);
-          setToastMessage({ text: `Focus Mode: ${next.toUpperCase()}` });
-        }}
-        onShowToast={(msg) => showToast(msg)}
-        onOpenControlCenter={() => {
-          setIsNotificationCenterOpen(false);
-          setIsControlCenterOpen(true);
-        }}
-      />
-
-      {/* Control Center Panel (Pull down from top-right) */}
-      <ControlCenter
-        isOpen={isControlCenterOpen}
-        onClose={() => setIsControlCenterOpen(false)}
-        brightness={brightness}
-        onBrightnessChange={setBrightness}
-        volume={volume}
-        onVolumeChange={setVolume}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        isPlayingMusic={isPlayingMusic}
-        onToggleMusic={handleToggleMusic}
-        currentTrack={currentTrack}
-        isFlashlightOn={isFlashlightOn}
-        onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
-        onOpenMagicRing={() => setIsMagicRingOpen(true)}
-      />
-
       {/* MagicRing Cross-Device Collaboration Modal */}
       <MagicRingModal
         isOpen={isMagicRingOpen}
@@ -1690,6 +1720,86 @@ export default function App() {
       {['twitter', 'instagram', 'tiktok', 'telegram'].includes(activeApp || '') && (
         <SocialAppView appName={activeApp!} onClose={handleCloseApp} />
       )}
+
+      {/* Notification Center Shade (Pull down from left/center of top) */}
+      <NotificationCenter
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        notifications={notifications}
+        onDismiss={(id: string) => {
+          setNotifications(prev => prev.filter(n => n.id !== id));
+        }}
+        onClearAll={() => setNotifications([])}
+        onAddNotification={(n) => setNotifications(prev => [n, ...prev])}
+        onOpenSettings={() => {
+          setIsNotificationCenterOpen(false);
+          handleOpenApp('settings');
+        }}
+        onOpenApp={(appId) => {
+          setIsNotificationCenterOpen(false);
+          handleOpenApp(appId);
+        }}
+        isFlashlightOn={isFlashlightOn}
+        onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
+        volume={volume}
+        onVolumeChange={setVolume}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        isPlayingMusic={isPlayingMusic}
+        onToggleMusic={handleToggleMusic}
+        currentTrack={currentTrack}
+        onNextTrack={handleNextTrack}
+        isCellularOn={isCellularOn}
+        onToggleCellular={() => setIsCellularOn(prev => !prev)}
+        isWifiOn={isWifiOn}
+        onToggleWifi={() => setIsWifiOn(prev => !prev)}
+        isBluetoothOn={isBluetoothOn}
+        onToggleBluetooth={() => setIsBluetoothOn(prev => !prev)}
+        isAirplaneOn={isAirplaneOn}
+        onToggleAirplane={handleToggleAirplane}
+        isSilentModeOn={isSilentModeOn}
+        onToggleSilentMode={() => setIsSilentModeOn(prev => !prev)}
+        isLowPowerOn={isLowPowerOn}
+        onToggleLowPower={handleToggleLowPower}
+        isRotationLocked={isRotationLocked}
+        onToggleRotationLock={() => setIsRotationLocked(prev => !prev)}
+        isNightShiftOn={isNightShiftOn}
+        onToggleNightShift={() => setIsNightShiftOn(prev => !prev)}
+        isHotspotOn={isHotspotOn}
+        onToggleHotspot={() => setIsHotspotOn(prev => !prev)}
+        focusMode={focusMode}
+        onCycleFocusMode={() => {
+          const modes: ('work' | 'personal' | 'sleep' | 'dnd')[] = ['work', 'personal', 'sleep', 'dnd'];
+          const next = modes[(modes.indexOf(focusMode) + 1) % modes.length];
+          setFocusMode(next);
+          setToastMessage({ text: `Focus Mode: ${next.toUpperCase()}` });
+        }}
+        onShowToast={(msg) => showToast(msg)}
+        onOpenControlCenter={() => {
+          setIsNotificationCenterOpen(false);
+          setIsControlCenterOpen(true);
+        }}
+      />
+
+      {/* Control Center Panel (Pull down from top-right) */}
+      <ControlCenter
+        isOpen={isControlCenterOpen}
+        onClose={() => setIsControlCenterOpen(false)}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
+        volume={volume}
+        onVolumeChange={setVolume}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        isPlayingMusic={isPlayingMusic}
+        onToggleMusic={handleToggleMusic}
+        currentTrack={currentTrack}
+        isFlashlightOn={isFlashlightOn}
+        onToggleFlashlight={() => setIsFlashlightOn(!isFlashlightOn)}
+        onOpenMagicRing={() => setIsMagicRingOpen(true)}
+      />
 
       {/* Lock Screen Overlay */}
       {isLocked && (

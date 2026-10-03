@@ -360,6 +360,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   }, [activeToggleIds]);
 
+  // Swipe UP gesture from the base of the notification panel
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [isDraggingBase, setIsDraggingBase] = useState(false);
+  const baseTouchStartRef = useRef<{ y: number; time: number } | null>(null);
+
   if (!isOpen) return null;
 
   // Internal Toast helper
@@ -368,11 +373,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       onShowToast(msg);
     }
   };
-
-  // Swipe UP gesture from the base of the notification panel
-  const [dragOffsetY, setDragOffsetY] = useState(0);
-  const [isDraggingBase, setIsDraggingBase] = useState(false);
-  const baseTouchStartRef = useRef<{ y: number; time: number } | null>(null);
 
   const handleBasePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -702,7 +702,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex flex-col justify-start bg-neutral-950/80 backdrop-blur-3xl text-white overflow-y-auto no-scrollbar animate-in slide-in-from-top duration-300 select-none"
+      className="fixed inset-0 z-[100] flex flex-col justify-start bg-neutral-950/80 backdrop-blur-3xl text-white overflow-y-auto no-scrollbar animate-in slide-in-from-top duration-300 select-none"
       style={{
         transform: dragOffsetY > 0 ? `translateY(-${dragOffsetY}px)` : undefined,
         transition: isDraggingBase ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease-out',

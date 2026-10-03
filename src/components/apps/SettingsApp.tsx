@@ -24,6 +24,7 @@ import { WALLPAPERS } from '../../data/apps';
 import { WallpaperItem } from '../../types/launcher';
 import { playTapSound } from '../../utils/sound';
 import { triggerHaptic, isHapticsEnabled, setHapticsEnabled, getHapticIntensity, setHapticIntensity } from '../../utils/haptics';
+import { getActualSystemInfo } from '../../utils/systemInfo';
 
 export type DeviceMode = 'phone' | 'tablet' | 'phone-frame';
 
@@ -67,6 +68,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
   onVolumeChange,
 }) => {
   const [selectedTab, setSelectedTab] = useState<'main' | 'about' | 'wallpapers'>('main');
+  const [sysInfo] = useState(() => getActualSystemInfo());
   const [hapticsOn, setHapticsOn] = useState(isHapticsEnabled());
   const [intensity, setIntensity] = useState(getHapticIntensity());
   const [isFullscreen, setIsFullscreen] = useState(
@@ -120,7 +122,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 max-w-lg mx-auto w-full">
         {selectedTab === 'main' && (
           <>
-            {/* 1. About Phone Card (SUNNY MagicOS Flagship) */}
+            {/* 1. About Phone Card (Actual Default System Information & Sunny Magic OS11) */}
             <div
               onClick={() => {
                 playTapSound(600);
@@ -133,10 +135,12 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
                   <Smartphone size={24} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">SUNNY Magic7 Pro</h3>
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    {sysInfo.deviceName}
+                  </h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-xs font-semibold text-cyan-400">MagicOS 11.0</span>
-                    <span className="text-[10px] text-neutral-400">· 512GB</span>
+                    <span className="text-xs font-semibold text-cyan-400">Sunny Magic OS11</span>
+                    <span className="text-[10px] text-neutral-400">· {sysInfo.osName} {sysInfo.osVersion ? `v${sysInfo.osVersion}` : ''} · {sysInfo.deviceMemory}</span>
                   </div>
                 </div>
               </div>
@@ -469,42 +473,50 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
               <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-xl mb-3">
                 <Sparkles size={32} />
               </div>
-              <h2 className="text-2xl font-extrabold text-white tracking-tight">MagicOS 11</h2>
-              <p className="text-xs text-cyan-300 font-mono mt-1">Official SUNNY Experience</p>
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">Sunny Magic OS11</h2>
+              <p className="text-xs text-cyan-300 font-mono mt-1">Default System Environment</p>
               <div className="mt-3 inline-block px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-semibold border border-cyan-500/40">
-                Up to date · 11.0.0.128 (C00E120R3P1)
+                MagicOS Version 11.0.1 (Official Build)
               </div>
             </div>
 
             {/* Specifications Specs Sheet */}
             <div className="rounded-[28px] bg-neutral-900/80 border border-neutral-800 divide-y divide-neutral-800/80 text-xs">
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Device Name</span>
-                <span className="font-semibold text-white">SUNNY Magic7 Pro</span>
+                <span className="text-neutral-400">Default Device Name</span>
+                <span className="font-semibold text-white">{sysInfo.deviceName}</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Processor</span>
-                <span className="font-semibold text-white">Snapdragon® 8 Gen 4 (3nm)</span>
+                <span className="text-neutral-400">System Software</span>
+                <span className="font-semibold text-cyan-400">Sunny Magic OS11</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">RAM Turbo</span>
-                <span className="font-semibold text-white">16 GB + 8 GB Expansion</span>
+                <span className="text-neutral-400">Operating System</span>
+                <span className="font-semibold text-white">{sysInfo.osName} {sysInfo.osVersion ? `v${sysInfo.osVersion}` : ''}</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Internal Storage</span>
-                <span className="font-semibold text-white">512 GB (184 GB Used)</span>
+                <span className="text-neutral-400">Hardware CPU</span>
+                <span className="font-semibold text-white">{sysInfo.cpuCores} Cores Concurrency</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Battery</span>
-                <span className="font-semibold text-white">5,600 mAh Qinghai Lake Battery</span>
+                <span className="text-neutral-400">Device Memory (RAM)</span>
+                <span className="font-semibold text-white">{sysInfo.deviceMemory}</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Android Version</span>
-                <span className="font-semibold text-white">Android 15</span>
+                <span className="text-neutral-400">Display Resolution</span>
+                <span className="font-semibold text-white">{sysInfo.screenResolution}</span>
               </div>
               <div className="p-3.5 flex justify-between">
-                <span className="text-neutral-400">Display</span>
-                <span className="font-semibold text-white">6.8" 120Hz LTPO OLED 4320Hz PWM</span>
+                <span className="text-neutral-400">Network Connection</span>
+                <span className="font-semibold text-white">{sysInfo.networkType}</span>
+              </div>
+              <div className="p-3.5 flex justify-between">
+                <span className="text-neutral-400">Language & Region</span>
+                <span className="font-semibold text-white">{sysInfo.language}</span>
+              </div>
+              <div className="p-3.5 flex justify-between">
+                <span className="text-neutral-400">Timezone</span>
+                <span className="font-semibold text-white">{sysInfo.timezone}</span>
               </div>
             </div>
           </div>
